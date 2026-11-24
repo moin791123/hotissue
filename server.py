@@ -34,8 +34,7 @@ WEB = os.path.join(HERE, "web")
 DATA = os.path.join(HERE, "data")
 STATE_FILE = os.path.join(DATA, "state.json")
 STATIC = {"/": ("index.html", "text/html; charset=utf-8"),
-          "/index.html": ("index.html", "text/html; charset=utf-8"),
-          "/config.js": ("config.js", "text/javascript; charset=utf-8")}
+          "/index.html": ("index.html", "text/html; charset=utf-8")}
 ENGINE = Engine()
 MORE_CACHE = {}                                # 이슈 이름 → (시각, 추가 기사)
 HTTPD = None

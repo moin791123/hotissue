@@ -96,7 +96,6 @@ a { color: inherit; text-decoration: none; }
 }
 .tool:hover { background: rgba(255, 255, 255, .08); }
 .tool[aria-pressed="true"] { background: #ff5a4d; border-color: #ff5a4d; color: #1a0503; }
-.tool.in { border-color: var(--band-dim); }
 @media (max-width: 520px) { .band-tools { margin-left: 0; width: 100%; } .band-top { gap: 8px; } }
 .more-link { display: inline-block; margin-top: 10px; font-size: 13px; color: var(--accent); font-weight: 600; }
 .more-link:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -228,7 +227,6 @@ a { color: inherit; text-decoration: none; }
       <h1 class="brand">지금 이슈 <span class="live off" id="live"><span class="dot"></span><span id="liveText">연결 중…</span></span></h1>
       <div class="band-tools">
         <button class="tool" id="notifyBtn" type="button" aria-pressed="false">속보 알림 켜기</button>
-        <button class="tool" id="loginBtn" type="button" hidden>로그인</button>
       </div>
     </div>
     <nav class="tabs" id="tabs" role="tablist" aria-label="분야"></nav>
@@ -255,7 +253,7 @@ a { color: inherit; text-decoration: none; }
       <p class="empty" id="mineEmpty">이슈를 펼쳐 기사를 열어 보면, 그 뒤로 비슷한 이슈와 이어지는 새 소식이 여기에 모이고 순위에서도 위로 올라옵니다.</p>
     </section>
     <section class="panel" aria-labelledby="kwH">
-      <div class="panel-h"><h2 id="kwH">학습된 관심사</h2><span class="sub" id="kwWhere"></span><button class="act" id="resetBtn" type="button" hidden>모두 지우기</button></div>
+      <div class="panel-h"><h2 id="kwH">학습된 관심사</h2><span class="sub">이 기기에만 저장</span><button class="act" id="resetBtn" type="button" hidden>모두 지우기</button></div>
       <div class="kw" id="kwList"></div>
       <p class="empty" id="kwEmpty">아직 없습니다. 열어 본 기사 제목의 낱말이 관심사로 쌓이고, 열흘쯤 안 보면 저절로 옅어집니다.</p>
     </section>
@@ -268,18 +266,16 @@ a { color: inherit; text-decoration: none; }
 </main>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
-<script src="config.js"></script>
 <script>
 "use strict";
 /* 지금 이슈 화면.
    순위 데이터(data/issues.json, data/i/<이슈>.json)는 서버나 GitHub Pages 가 준다.
-   관심사는 이 브라우저가 직접 계산·보관하고, 로그인하면 계정에 저장해 기기끼리 맞춘다. */
-const CFG = window.HOTISSUE_CONFIG || {};
+   관심사는 이 브라우저가 직접 계산해 이 기기에만 보관한다 (기기마다 따로 쌓인다). */
 const POLL_MS = 30000;
 const TAB_ORDER = ["society", "econ", "world", "politics", "ent", "it", "sports"];
 const HALF_LIFE_DAYS = 10, MAX_WEIGHT = 12, FOLLOW_DAYS = 3;
 const S = { raw: null, view: null, tab: "main", open: null, seen: null, seenFlash: null,
-            learned: new Set(), notify: false, lastOk: 0, user: null, cloud: null, auth: null };
+            learned: new Set(), notify: false, lastOk: 0 };
 const $ = id => document.getElementById(id);
 const nowSec = () => Date.now() / 1000;
 
@@ -315,7 +311,7 @@ function showAlert(text, kind) {
 }
 function clearAlert(kind) { if ($("alert").dataset.kind === kind) $("alert").hidden = true; }
 
-/* ── 내 관심사 (이 기기에 보관, 로그인하면 계정과 맞춤) ───────────── */
+/* ── 내 관심사 (이 기기에만 보관) ───────────── */
 function blank() { return { kw: {}, cat: {}, follow: {}, asOf: nowSec(), clicks: 0 }; }
 function tidy(p) {
   p = p || {};
@@ -333,17 +329,9 @@ function decay(p) {                         // 관심은 열흘마다 절반으�
   return p;
 }
 function readLocal() { try { return decay(tidy(JSON.parse(localStorage.getItem("hi.profile")))); } catch (e) { return blank(); } }
-function writeLocal(dirty) {
-  try {
-    localStorage.setItem("hi.profile", JSON.stringify(P));
-    if (dirty != null) localStorage.setItem("hi.dirty", dirty ? "1" : "");
-  } catch (e) { /* 저장이 막힌 브라우저에서도 화면은 동작 */ }
-}
-function isDirty() { try { return !!localStorage.getItem("hi.dirty"); } catch (e) { return false; } }
 let P = readLocal();
-function saveProfile() {                    // 로그인 중이면 계정에, 아니면 이 기기에만(나중에 합칠 표시)
-  if (S.cloud) { writeLocal(false); S.cloud.save(P); }
-  else writeLocal(true);
+function saveProfile() {
+  try { localStorage.setItem("hi.profile", JSON.stringify(P)); } catch (e) { /* 저장이 막힌 브라우저에서도 화면은 동작 */ }
 }
 function learn(weights, cat, catW, followId) {
   decay(P);
@@ -358,13 +346,6 @@ function learn(weights, cat, catW, followId) {
   saveProfile();
   refresh();
 }
-function mergeProfiles(a, b) {              // 두 기기에 따로 쌓인 것을 합칠 때: 낱말마다 큰 쪽
-  const out = blank(), bigger = (x, y) => { const o = Object.assign({}, x); for (const [k, v] of Object.entries(y)) o[k] = Math.max(o[k] || 0, v); return o; };
-  out.kw = bigger(a.kw, b.kw); out.cat = bigger(a.cat, b.cat); out.follow = bigger(a.follow, b.follow);
-  out.asOf = Math.max(a.asOf, b.asOf); out.clicks = Math.max(a.clicks, b.clicks);
-  return out;
-}
-
 /* ── 순위 계산: 뜨거움 × 분야 비중 × 내 관심 ─────────────────────── */
 function computeView(raw) {
   const kw = P.kw, catw = P.cat, W = raw.catWeight, CAP = raw.catCap, alias = raw.alias || {};
@@ -533,7 +514,6 @@ function render() {
   $("kwList").hidden = !kws.length;
   $("kwEmpty").hidden = kws.length > 0;
   $("resetBtn").hidden = !kws.length;
-  $("kwWhere").textContent = S.user ? "계정에 저장 · 모든 기기에서 같이 쌓임" : (CFG.firebase ? "지금은 이 기기에만 · 로그인하면 기기끼리 합쳐짐" : "이 기기에 저장");
   // 급상승 검색어
   $("trendPanel").hidden = !raw.trends.length;
   $("trendList").replaceChildren(...raw.trends.map((t, n) => {
@@ -735,66 +715,6 @@ $("resetBtn").addEventListener("click", () => {
   else { b.dataset.sure = "1"; b.textContent = "정말 지울까요? 한 번 더 누르기"; setTimeout(() => { delete b.dataset.sure; b.textContent = "모두 지우기"; }, 4000); }
 });
 
-/* ── 로그인: 구글 계정으로 들어오면 관심사를 계정에 두고 기기끼리 맞춘다 ── */
-function renderAccount() {
-  const b = $("loginBtn");
-  b.hidden = !S.auth;
-  b.classList.toggle("in", !!S.user);
-  b.textContent = S.user ? ((S.user.displayName || S.user.email || "내 계정").split(/[\s@]/)[0] + " · 로그아웃") : "로그인";
-  if (S.view) render();
-}
-async function initCloud() {
-  if (!CFG.firebase) return;
-  try {
-    const V = "https://www.gstatic.com/firebasejs/10.12.2/";
-    const [appM, authM, dbM] = await Promise.all([import(V + "firebase-app.js"), import(V + "firebase-auth.js"), import(V + "firebase-firestore.js")]);
-    const app = appM.initializeApp(CFG.firebase);
-    const auth = authM.getAuth(app), db = dbM.getFirestore(app);
-    const syncError = e => showAlert("계정에 관심사를 저장하지 못했습니다 (" + (e.code || e.message) + "). 이 기기에는 그대로 남아 있습니다.", "sync");
-    let stop = null;
-    S.auth = {
-      login: () => authM.signInWithPopup(auth, new authM.GoogleAuthProvider()),
-      logout: () => authM.signOut(auth),
-    };
-    authM.onAuthStateChanged(auth, user => {
-      if (stop) { stop(); stop = null; }
-      S.user = user;
-      S.cloud = null;
-      if (user) {
-        const ref = dbM.doc(db, "profiles", user.uid);
-        let first = true;
-        S.cloud = { save: p => dbM.setDoc(ref, tidy(p)).then(() => clearAlert("sync")).catch(syncError) };
-        stop = dbM.onSnapshot(ref, snap => {
-          if (snap.metadata.hasPendingWrites) return;      // 내가 방금 쓴 것은 건너뜀
-          const remote = snap.exists() ? decay(tidy(snap.data())) : null;
-          if (first) {
-            first = false;
-            // 로그인 전 이 기기에 따로 쌓인 게 있으면 계정 것과 합치고, 없으면 계정 것을 그대로 따른다
-            if (remote && isDirty()) { P = mergeProfiles(P, remote); saveProfile(); }
-            else if (remote) { P = remote; writeLocal(false); }
-            else saveProfile();
-          } else if (remote) { P = remote; writeLocal(false); }   // 다른 기기에서 바뀐 것을 반영
-          refresh();
-        }, syncError);
-      }
-      renderAccount();
-    });
-    renderAccount();
-  } catch (e) {
-    console.warn("로그인 기능을 불러오지 못했습니다:", e);
-  }
-}
-$("loginBtn").addEventListener("click", async () => {
-  if (!S.auth) return;
-  try { await (S.user ? S.auth.logout() : S.auth.login()); clearAlert("login"); }
-  catch (e) {
-    if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") return;
-    showAlert(e.code === "auth/popup-blocked" ? "로그인 창이 차단됐습니다. 팝업을 허용하거나, 카카오톡 같은 앱 안 브라우저 대신 크롬·사파리에서 열어 주세요."
-      : e.code === "auth/unauthorized-domain" ? "이 주소가 Firebase 승인된 도메인에 없습니다. Firebase 콘솔 → Authentication → 설정 → 승인된 도메인에 이 주소를 추가해 주세요."
-      : "로그인하지 못했습니다 (" + (e.code || e.message) + ").", "login");
-  }
-});
-
 /* ── 갱신 ─────────────────────────────── */
 async function poll() {
   try {
@@ -816,8 +736,7 @@ poll();
 setInterval(poll, POLL_MS);
 setInterval(() => { if (S.view) render(); }, 60000);     // '몇 분 전' 표시를 흐르게
 document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
-window.addEventListener("storage", e => { if (e.key === "hi.profile" && !S.cloud) { P = readLocal(); refresh(); } });
-initCloud();
+window.addEventListener("storage", e => { if (e.key === "hi.profile") { P = readLocal(); refresh(); } });
 </script>
 </body>
 </html>

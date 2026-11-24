@@ -14,7 +14,8 @@
 | 돌리는 것 | `server.py` (PC가 켜져 있어야 함) | `.github/workflows/collect.yml` → `build.py` |
 | 화면 | `web/` — 양쪽이 똑같은 파일을 쓴다 | |
 
-관심사는 브라우저가 직접 계산·보관한다. 로그인을 켜면 구글 계정에 저장돼 여러 기기에서 같이 쌓인다.
+관심사는 브라우저가 직접 계산해 **그 기기에만** 보관한다(로그인 없음). 그래서 PC와 휴대폰은 각자 따로 배운다.
+열흘쯤 안 보면 저절로 옅어지고, 화면 오른쪽 "학습된 관심사"에서 낱말별로 지울 수 있다.
 
 ## 내 PC판
 
@@ -29,34 +30,6 @@
 3. 언론사 RSS 를 받아 이슈를 묶고 순위를 매긴 뒤, `data/issues.json` 과 이슈별 `data/i/<id>.json` 을 만들어 Pages 로 배포한다.
 
 저장소에 60일 동안 변화가 없으면 GitHub 이 일정 실행을 자동으로 멈춘다. Actions 탭에서 다시 켜면 된다.
-
-## 로그인 켜기 (여러 기기에서 관심사 같이 쌓기)
-
-구글 계정 로그인과 저장은 Firebase(무료 Spark 요금제)를 쓴다. 한 번만 하면 된다.
-
-1. <https://console.firebase.google.com> → **프로젝트 추가** (애널리틱스는 꺼도 된다).
-2. **빌드 → Authentication → 시작하기 → 로그인 방법 → Google** 사용 설정.
-3. **Authentication → 설정 → 승인된 도메인**에 `<계정>.github.io` 추가. (`localhost` 는 기본으로 들어 있다)
-4. **빌드 → Firestore Database → 데이터베이스 만들기** (위치는 `asia-northeast3` 서울, 프로덕션 모드).
-5. Firestore **규칙** 탭에 아래를 붙여 넣고 게시 — 로그인한 본인만 자기 문서를 읽고 쓴다.
-
-   ```
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       match /profiles/{uid} {
-         allow read, write: if request.auth != null && request.auth.uid == uid;
-       }
-     }
-   }
-   ```
-
-6. **프로젝트 설정(톱니바퀴) → 일반 → 내 앱 → 웹 앱 추가(`</>`)** 후 나오는 `firebaseConfig` 값을
-   `web/config.js` 의 `firebase:` 자리에 넣고 저장소에 올린다.
-   이 값은 비밀번호가 아니라 공개 식별자다. 접근 통제는 5번의 규칙이 맡는다.
-
-그러면 화면 오른쪽 위에 **로그인** 버튼이 생긴다. 로그인 전에 그 기기에 쌓인 관심사는 로그인할 때 계정 것과 합쳐진다.
-카카오톡 같은 앱 안 브라우저에서는 구글 로그인 창이 막히므로 크롬·사파리에서 연다.
 
 ## 순위 성격 바꾸기
 
