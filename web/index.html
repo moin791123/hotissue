@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1a3d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="지금 이슈">
+<title>지금 이슈</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f1a3d'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23ff5a4d'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+/* 배치: 위에 남색 방송 자막 띠(제목·갱신 시각·분야 탭), 아래 왼쪽은 순위표, 오른쪽은 내 관심 영역 */
+:root {
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --sunken: #f5f7fb;
+  --ink: #10172a;
+  --ink-2: #485267;
+  --ink-3: #7a8499;
+  --line: #dde2ec;
+  --accent: #1b45d8;
+  --accent-soft: #e7ecff;
+  --hot: #d92d20;
+  --hot-soft: #fde9e6;
+  --rise: #b4510a;
+  --rise-soft: #fdf0e1;
+  --band: #0f1a3d;
+  --band-ink: #ffffff;
+  --band-dim: #a9b6dd;
+  --band-line: #26335f;
+  --font: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", system-ui, sans-serif;
+  --radius: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b101b;
+    --surface: #131a29;
+    --sunken: #0f1522;
+    --ink: #e9edf6;
+    --ink-2: #aab3c7;
+    --ink-3: #78829a;
+    --line: #242d42;
+    --accent: #86a0ff;
+    --accent-soft: #1a2647;
+    --hot: #ff6d60;
+    --hot-soft: #3b1b1a;
+    --rise: #f3a257;
+    --rise-soft: #36240f;
+    --band: #070b16;
+    --band-ink: #f2f5ff;
+    --band-dim: #8b97bd;
+    --band-line: #1c2540;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 var(--font);
+  font-variant-numeric: tabular-nums;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+[hidden] { display: none !important; }
+
+/* ── 자막 띠 ───────────────────────────── */
+.band {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--band); color: var(--band-ink);
+  border-bottom: 1px solid var(--band-line);
+}
+.band-in, .page {
+  max-width: 1180px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.band-top { display: flex; align-items: center; gap: 14px; padding-block: 12px 8px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 10px; margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.02em; }
+.live { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 500; color: var(--band-dim); letter-spacing: 0; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #ff5a4d; box-shadow: 0 0 0 0 rgba(255, 90, 77, .7); animation: pulse 2s infinite; }
+.live.off .dot { background: #6b7694; animation: none; }
+@keyframes pulse { 70% { box-shadow: 0 0 0 7px rgba(255, 90, 77, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 90, 77, 0); } }
+.band-tools { margin-left: auto; display: flex; gap: 8px; }
+.tool {
+  font-size: 12.5px; font-weight: 600; color: var(--band-ink);
+  padding: 6px 11px; border: 1px solid var(--band-line); border-radius: 999px;
+}
+.tool:hover { background: rgba(255, 255, 255, .08); }
+.tool[aria-pressed="true"] { background: #ff5a4d; border-color: #ff5a4d; color: #1a0503; }
+.tool.in { border-color: var(--band-dim); }
+@media (max-width: 520px) { .band-tools { margin-left: 0; width: 100%; } .band-top { gap: 8px; } }
+.more-link { display: inline-block; margin-top: 10px; font-size: 13px; color: var(--accent); font-weight: 600; }
+.more-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin: 0 -4px; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  flex: none; padding: 8px 12px 10px; font-size: 14px; font-weight: 600; color: var(--band-dim);
+  border-bottom: 3px solid transparent; white-space: nowrap;
+}
+.tab:hover { color: var(--band-ink); }
+.tab[aria-selected="true"] { color: var(--band-ink); border-bottom-color: #ff5a4d; }
+
+/* ── 본문 배치 ─────────────────────────── */
+.page { padding-block: 18px 48px; display: grid; gap: 22px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 980px) { .page { grid-template-columns: minmax(0, 1fr) 330px; align-items: start; } }
+.col { display: grid; gap: 18px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); min-width: 0; }
+.panel-h { display: flex; align-items: baseline; gap: 8px; padding: 13px 16px 9px; }
+.panel-h h2 { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
+.panel-h .sub { font-size: 12px; color: var(--ink-3); }
+.panel-h .act { margin-left: auto; font-size: 12px; color: var(--ink-3); text-decoration: underline; text-underline-offset: 3px; }
+.panel-h .act:hover { color: var(--ink); }
+.empty { margin: 0; padding: 4px 16px 16px; font-size: 13px; color: var(--ink-2); line-height: 1.6; }
+
+/* ── 순위 줄 ───────────────────────────── */
+.rows { list-style: none; margin: 0; padding: 0; }
+.row + .row { border-top: 1px solid var(--line); }
+.row-head {
+  display: grid; grid-template-columns: 30px 42px minmax(0, 1fr) auto; align-items: baseline;
+  column-gap: 6px; width: 100%; padding: 11px 16px 11px 12px;
+}
+.row-head:hover { background: var(--sunken); }
+.row.open > .row-head { background: var(--sunken); }
+.rank { font-size: 17px; font-weight: 800; text-align: center; color: var(--ink-2); letter-spacing: -0.03em; }
+.row.top .rank { color: var(--hot); }
+.chg { font-size: 11px; font-weight: 700; text-align: center; color: var(--ink-3); white-space: nowrap; }
+.chg.up { color: var(--hot); }
+.chg.down { color: var(--accent); }
+.chg.new { color: var(--rise); letter-spacing: .02em; }
+.line { min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.label { flex: none; max-width: 60%; font-weight: 700; font-size: 15.5px; letter-spacing: -0.015em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tags { flex: none; display: inline-flex; gap: 4px; }
+.tag { font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; white-space: nowrap; line-height: 1.5; }
+.tag.brk { background: var(--hot); color: #fff; }
+.tag.urg { background: var(--hot-soft); color: var(--hot); }
+.tag.rise { background: var(--rise-soft); color: var(--rise); }
+.tag.like { background: var(--accent-soft); color: var(--accent); }
+.tag.fresh { background: var(--accent); color: #fff; }
+@media (prefers-color-scheme: dark) { .tag.fresh, .tag.brk { color: #0b101b; } }
+.headline { min-width: 0; color: var(--ink-2); font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta { font-size: 12px; color: var(--ink-3); white-space: nowrap; padding-left: 10px; }
+.meta b { font-weight: 600; color: var(--ink-2); }
+@media (max-width: 700px) {
+  .row-head { grid-template-columns: 26px 36px minmax(0, 1fr); row-gap: 1px; padding-right: 12px; }
+  .line { flex-wrap: wrap; row-gap: 0; }
+  .label { max-width: 100%; }
+  .headline { flex-basis: 100%; }
+  .meta { grid-column: 3; padding-left: 0; }
+}
+.compact .row-head { grid-template-columns: minmax(0, 1fr); padding: 10px 16px; row-gap: 1px; }
+.compact .line { flex-wrap: wrap; row-gap: 0; }
+.compact .label { max-width: 100%; font-size: 14.5px; }
+.compact .headline { flex-basis: 100%; font-size: 13.5px; }
+.compact .meta { padding-left: 0; }
+
+/* ── 펼친 내용: 관련 뉴스 ─────────────── */
+.detail { padding: 4px 16px 16px 90px; background: var(--sunken); }
+.compact .detail { padding-left: 16px; }
+@media (max-width: 700px) { .detail { padding-left: 16px; } }
+.d-top { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 0 10px; }
+.chip { font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); background: var(--surface); }
+.chip.why { border-color: transparent; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.d-h { margin: 14px 0 4px; font-size: 12px; font-weight: 700; color: var(--ink-3); letter-spacing: .02em; }
+.arts { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.arts li + li { border-top: 1px solid var(--line); }
+.arts.flat { border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); background: none; }
+.arts.flat .art { padding: 9px 16px; }
+#flashH { color: var(--hot); }
+.art { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 8px 12px; }
+.art:hover .art-t { text-decoration: underline; text-underline-offset: 3px; }
+.art:visited .art-t { color: var(--ink-3); }
+.art-time { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.art-t { font-size: 14.5px; line-height: 1.45; }
+.art-t .tag { margin-right: 6px; vertical-align: 1px; }
+.art-o { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+@media (max-width: 700px) {
+  .art { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .art-time { order: 2; } .art-o { order: 3; display: none; }
+  .art-time::after { content: " · " attr(data-outlet); }
+}
+.compact .art { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.compact .art-o { display: none; }
+.compact .art-time { order: 2; }
+.compact .art-time::after { content: " · " attr(data-outlet); }
+.rel { display: flex; flex-wrap: wrap; gap: 6px; }
+.relbtn { font-size: 13px; padding: 5px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); }
+.relbtn:hover { border-color: var(--accent); color: var(--accent); }
+.back { font-size: 13px; color: var(--accent); font-weight: 600; padding: 6px 0; }
+.note { margin: 10px 0 0; font-size: 12.5px; color: var(--ink-3); }
+.loading { padding: 14px 0; font-size: 13px; color: var(--ink-3); }
+
+/* ── 관심사 ───────────────────────────── */
+.kw { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 16px 16px; }
+.kwchip { display: inline-flex; align-items: center; gap: 2px; font-size: 13px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.kwchip button { width: 20px; height: 20px; border-radius: 50%; text-align: center; line-height: 18px; font-size: 14px; color: var(--accent); opacity: .65; }
+.kwchip button:hover { opacity: 1; background: var(--surface); }
+.trend { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 2px 16px 16px; font-size: 13px; color: var(--ink-2); }
+.trend a:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.trend .n { color: var(--ink-3); margin-right: 4px; font-weight: 700; font-size: 12px; }
+.foot { font-size: 12px; color: var(--ink-3); line-height: 1.7; padding: 0 4px; }
+
+/* ── 알림 ─────────────────────────────── */
+.toasts { position: fixed; z-index: 40; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; width: min(380px, calc(100vw - 32px)); }
+.toast { display: block; width: 100%; background: var(--band); color: var(--band-ink); border-radius: 10px; padding: 11px 14px; box-shadow: 0 8px 28px rgba(0, 0, 0, .28); border: 1px solid var(--band-line); animation: rise .25s ease-out; }
+.toast small { display: block; font-size: 11.5px; font-weight: 700; color: #ff8a80; letter-spacing: .03em; margin-bottom: 2px; }
+.toast b { font-size: 14.5px; }
+.toast span { display: block; font-size: 13px; color: var(--band-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes rise { from { transform: translateY(10px); opacity: 0; } }
+.row.flash > .row-head { animation: flash 2.4s ease-out; }
+@keyframes flash { from { background: var(--rise-soft); } }
+.alert { margin: 0; padding: 10px 16px; font-size: 13.5px; background: var(--hot-soft); color: var(--hot); border-radius: var(--radius); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .dot, .toast, .row.flash > .row-head { animation: none; } }
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="band-in">
+    <div class="band-top">
+      <h1 class="brand">지금 이슈 <span class="live off" id="live"><span class="dot"></span><span id="liveText">연결 중…</span></span></h1>
+      <div class="band-tools">
+        <button class="tool" id="notifyBtn" type="button" aria-pressed="false">속보 알림 켜기</button>
+        <button class="tool" id="loginBtn" type="button" hidden>로그인</button>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs" role="tablist" aria-label="분야"></nav>
+  </div>
+</header>
+
+<main class="page">
+  <div class="col">
+    <p class="alert" id="alert" hidden></p>
+    <section class="panel" aria-labelledby="flashH" id="flashPanel" hidden>
+      <div class="panel-h"><h2 id="flashH">방금 들어온 속보</h2><span class="sub">한 곳이라도 '속보'로 올리면 순위보다 먼저 여기에</span></div>
+      <ul class="arts flat" id="flashList"></ul>
+    </section>
+    <section class="panel" aria-labelledby="mainH">
+      <div class="panel-h"><h2 id="mainH">실시간 핫이슈</h2><span class="sub" id="mainSub"></span></div>
+      <ol class="rows" id="mainList"></ol>
+      <p class="empty" id="mainEmpty">뉴스를 모으는 중입니다. 처음 켜면 10초쯤 걸려요.</p>
+    </section>
+  </div>
+  <aside class="col">
+    <section class="panel" aria-labelledby="mineH">
+      <div class="panel-h"><h2 id="mineH">내 관심 이슈</h2><span class="sub">순위 밖이지만 관심사와 닿는 것</span></div>
+      <ul class="rows compact" id="mineList"></ul>
+      <p class="empty" id="mineEmpty">이슈를 펼쳐 기사를 열어 보면, 그 뒤로 비슷한 이슈와 이어지는 새 소식이 여기에 모이고 순위에서도 위로 올라옵니다.</p>
+    </section>
+    <section class="panel" aria-labelledby="kwH">
+      <div class="panel-h"><h2 id="kwH">학습된 관심사</h2><span class="sub" id="kwWhere"></span><button class="act" id="resetBtn" type="button" hidden>모두 지우기</button></div>
+      <div class="kw" id="kwList"></div>
+      <p class="empty" id="kwEmpty">아직 없습니다. 열어 본 기사 제목의 낱말이 관심사로 쌓이고, 열흘쯤 안 보면 저절로 옅어집니다.</p>
+    </section>
+    <section class="panel" aria-labelledby="trH" id="trendPanel" hidden>
+      <div class="panel-h"><h2 id="trH">급상승 검색어</h2><span class="sub">구글 트렌드 · 한국</span></div>
+      <div class="trend" id="trendList"></div>
+    </section>
+    <p class="foot" id="foot"></p>
+  </aside>
+</main>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script>
+"use strict";
+/* 지금 이슈 화면.
+   순위 데이터(data/issues.json, data/i/<이슈>.json)는 서버나 GitHub Pages 가 준다.
+   관심사는 이 브라우저가 직접 계산·보관하고, 로그인하면 계정에 저장해 기기끼리 맞춘다. */
+const CFG = window.HOTISSUE_CONFIG || {};
+const POLL_MS = 30000;
+const TAB_ORDER = ["society", "econ", "world", "politics", "ent", "it", "sports"];
+const HALF_LIFE_DAYS = 10, MAX_WEIGHT = 12, FOLLOW_DAYS = 3;
+const S = { raw: null, view: null, tab: "main", open: null, seen: null, seenFlash: null,
+            learned: new Set(), notify: false, lastOk: 0, user: null, cloud: null, auth: null };
+const $ = id => document.getElementById(id);
+const nowSec = () => Date.now() / 1000;
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+function ago(ts) {
+  const s = Math.max(0, nowSec() - ts);
+  if (s < 90) return "방금";
+  if (s < 3600) return Math.round(s / 60) + "분 전";
+  if (s < 86400) return Math.round(s / 3600) + "시간 전";
+  const d = new Date(ts * 1000);
+  return (d.getMonth() + 1) + "월 " + d.getDate() + "일";
+}
+function clock(ts) {
+  const d = new Date(ts * 1000);
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+function safeUrl(u) { return /^https?:\/\//i.test(u) ? u : "#"; }
+function pretty(w) { return /^[a-z0-9]+$/.test(w) ? (w.length <= 4 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1)) : w; }
+async function getJSON(path, stamp) {
+  const r = await fetch(path + (path.includes("?") ? "&" : "?") + "t=" + stamp, { cache: "no-store" });
+  if (!r.ok) throw new Error(String(r.status));
+  return r.json();
+}
+function showAlert(text, kind) {
+  $("alert").textContent = text;
+  $("alert").dataset.kind = kind || "";
+  $("alert").hidden = false;
+}
+function clearAlert(kind) { if ($("alert").dataset.kind === kind) $("alert").hidden = true; }
+
+/* ── 내 관심사 (이 기기에 보관, 로그인하면 계정과 맞춤) ───────────── */
+function blank() { return { kw: {}, cat: {}, follow: {}, asOf: nowSec(), clicks: 0 }; }
+function tidy(p) {
+  p = p || {};
+  const num = o => { const out = {}; for (const [k, v] of Object.entries(o || {})) if (typeof v === "number" && isFinite(v)) out[k] = v; return out; };
+  return { kw: num(p.kw), cat: num(p.cat), follow: num(p.follow), asOf: +p.asOf || nowSec(), clicks: +p.clicks || 0 };
+}
+function decay(p) {                         // 관심은 열흘마다 절반으로 옅어진다
+  const t = nowSec(), days = (t - p.asOf) / 86400;
+  if (days < 0.04) return p;
+  const f = Math.pow(0.5, days / HALF_LIFE_DAYS);
+  for (const k of Object.keys(p.kw)) { p.kw[k] *= f; if (p.kw[k] < 0.15) delete p.kw[k]; }
+  for (const k of Object.keys(p.cat)) { p.cat[k] *= f; if (p.cat[k] < 0.05) delete p.cat[k]; }
+  for (const k of Object.keys(p.follow)) if (p.follow[k] < t - FOLLOW_DAYS * 86400) delete p.follow[k];
+  p.asOf = t;
+  return p;
+}
+function readLocal() { try { return decay(tidy(JSON.parse(localStorage.getItem("hi.profile")))); } catch (e) { return blank(); } }
+function writeLocal(dirty) {
+  try {
+    localStorage.setItem("hi.profile", JSON.stringify(P));
+    if (dirty != null) localStorage.setItem("hi.dirty", dirty ? "1" : "");
+  } catch (e) { /* 저장이 막힌 브라우저에서도 화면은 동작 */ }
+}
+function isDirty() { try { return !!localStorage.getItem("hi.dirty"); } catch (e) { return false; } }
+let P = readLocal();
+function saveProfile() {                    // 로그인 중이면 계정에, 아니면 이 기기에만(나중에 합칠 표시)
+  if (S.cloud) { writeLocal(false); S.cloud.save(P); }
+  else writeLocal(true);
+}
+function learn(weights, cat, catW, followId) {
+  decay(P);
+  for (const [k, w] of Object.entries(weights)) P.kw[k] = Math.min(MAX_WEIGHT, (P.kw[k] || 0) + w);
+  if (cat && catW) P.cat[cat] = (P.cat[cat] || 0) + catW;
+  if (followId) {
+    P.follow[followId] = Math.floor(nowSec());
+    const ids = Object.keys(P.follow);
+    if (ids.length > 60) ids.sort((a, b) => P.follow[a] - P.follow[b]).slice(0, ids.length - 60).forEach(k => delete P.follow[k]);
+  }
+  P.clicks += 1;
+  saveProfile();
+  refresh();
+}
+function mergeProfiles(a, b) {              // 두 기기에 따로 쌓인 것을 합칠 때: 낱말마다 큰 쪽
+  const out = blank(), bigger = (x, y) => { const o = Object.assign({}, x); for (const [k, v] of Object.entries(y)) o[k] = Math.max(o[k] || 0, v); return o; };
+  out.kw = bigger(a.kw, b.kw); out.cat = bigger(a.cat, b.cat); out.follow = bigger(a.follow, b.follow);
+  out.asOf = Math.max(a.asOf, b.asOf); out.clicks = Math.max(a.clicks, b.clicks);
+  return out;
+}
+
+/* ── 순위 계산: 뜨거움 × 분야 비중 × 내 관심 ─────────────────────── */
+function computeView(raw) {
+  const kw = P.kw, catw = P.cat, W = raw.catWeight, CAP = raw.catCap, alias = raw.alias || {};
+  const seenAt = {};
+  for (const [id, ts] of Object.entries(P.follow)) { const r = alias[id] || id; seenAt[r] = Math.max(ts, seenAt[r] || 0); }
+  const totalCat = Object.values(catw).reduce((a, b) => a + b, 0);
+  const issues = raw.order.map(id => {
+    const i = Object.assign({ id }, raw.items[id]);
+    let m = 0;
+    const why = [];
+    for (const [t, share] of i.core) {
+      const w = kw[t];
+      if (w) { const part = w * Math.min(1, share * 1.5); m += part; why.push([part, t]); }
+    }
+    i.interest = 1 - Math.exp(-m / 4);      // 한 번 본 것으로는 '조금 더', 거듭 볼수록 확실히 위로
+    const ca = totalCat >= 3 ? (catw[i.cat] || 0) / totalCat : 0;
+    i.why = why.sort((a, b) => b[0] - a[0]).slice(0, 2).map(x => x[1]);
+    i.score = i.hot * (W[i.cat] || 1) * (1 + 0.8 * i.interest) * (1 + 0.3 * ca);
+    const last = seenAt[id];
+    i.fresh = last ? i.ts.filter(t => t > last).length : 0;
+    i.catLabel = raw.catLabels[i.cat] || i.cat;
+    return i;
+  });
+  issues.sort((a, b) => b.score - a.score);
+  const main = [], used = {};
+  for (const i of issues) {                 // 정치·연예·스포츠는 정해진 몫까지만 (내가 즐겨 보면 더)
+    if (!i.eligible) continue;
+    const cap = CAP[i.cat];
+    if (cap != null) {
+      const liked = totalCat >= 3 && (catw[i.cat] || 0) / totalCat >= 0.3;
+      if ((used[i.cat] || 0) >= cap + (liked ? 2 : 0) && i.interest < 0.4) continue;
+    }
+    used[i.cat] = (used[i.cat] || 0) + 1;
+    main.push(i);
+    if (main.length >= raw.mainSize) break;
+  }
+  for (const cat of ["politics", "ent"]) {  // 그래도 '가장 뜨거운 하나'는 들어오게
+    if (used[cat] || main.length < raw.mainSize) continue;
+    const best = issues.find(i => i.cat === cat && i.eligible && i.outlets >= 5);
+    if (best) { main[main.length - 1] = best; used[cat] = 1; main.sort((a, b) => b.score - a.score); }
+  }
+  const mainIds = new Set(main.map(i => i.id)), bycat = {};
+  for (const i of issues) {
+    const l = bycat[i.cat] || (bycat[i.cat] = []);
+    if (l.length < 15 && (i.outlets >= 3 || i.interest >= 0.2)) l.push(i.id);
+  }
+  const lift = i => i.score * (i.fresh ? 1.5 : 1);
+  const mine = issues.filter(i => !mainIds.has(i.id) && (i.interest >= 0.2 || i.fresh > 0)).sort((a, b) => lift(b) - lift(a)).slice(0, 8);
+  const items = {};
+  issues.forEach(i => { items[i.id] = i; });
+  return { main: main.map(i => i.id), mine: mine.map(i => i.id), bycat, items };
+}
+function refresh() {
+  if (!S.raw) return;
+  S.view = computeView(S.raw);
+  render();
+}
+
+/* ── 그리기 ───────────────────────────── */
+function tagsFor(i) {
+  const box = el("span", "tags");
+  if (i.breaking) box.append(el("span", "tag brk", "속보"));
+  if (i.urgent && !i.breaking) box.append(el("span", "tag urg", "긴급"));
+  if (i.rising) box.append(el("span", "tag rise", "급상승"));
+  if (i.fresh > 0) box.append(el("span", "tag fresh", "새 기사 " + i.fresh));
+  else if (i.interest >= 0.2) box.append(el("span", "tag like", "관심"));
+  return box;
+}
+function rowEl(i, rank, listKey) {
+  const key = listKey + ":" + i.id;
+  const li = el("li", "row" + (rank && rank <= 3 ? " top" : ""));
+  li.dataset.key = key;
+  const head = el("button", "row-head");
+  head.type = "button";
+  head.setAttribute("aria-expanded", "false");
+  if (rank) {
+    head.append(el("span", "rank", String(rank)));
+    let chg = el("span", "chg", "–");
+    if (i.isNew) chg = el("span", "chg new", "NEW");
+    else if (i.change > 0) chg = el("span", "chg up", "▲" + i.change);
+    else if (i.change < 0) chg = el("span", "chg down", "▼" + (-i.change));
+    head.append(chg);
+  }
+  const line = el("span", "line");
+  line.append(el("span", "label", i.label), tagsFor(i), el("span", "headline", i.headline));
+  const meta = el("span", "meta");
+  meta.append(i.catLabel + " · ");
+  meta.append(el("b", null, i.outlets + "곳"));
+  meta.append(" · " + ago(i.latest));
+  head.append(line, meta);
+  head.addEventListener("click", () => toggle(key, i.id));
+  li.append(head);
+  return li;
+}
+function renderList(ol, ids, listKey, ranked) {
+  const v = S.view;
+  const anchor = S.open && S.open.node.isConnected ? S.open.node.parentElement : null;
+  const before = anchor ? anchor.getBoundingClientRect().top : 0;
+  const had = new Set([...ol.children].map(li => li.dataset.key));
+  const act = document.activeElement;       // 자동 갱신 때 키보드 초점이 사라지지 않게
+  const focusKey = act && act.classList.contains("row-head") && ol.contains(act) ? act.parentElement.dataset.key : null;
+  const frag = document.createDocumentFragment();
+  ids.forEach((id, n) => {
+    const i = v.items[id];
+    if (!i) return;
+    const li = rowEl(i, ranked ? n + 1 : 0, listKey);
+    if (S.open && S.open.key === li.dataset.key) {
+      li.classList.add("open");
+      li.firstChild.setAttribute("aria-expanded", "true");
+      li.append(S.open.node);
+    }
+    if (had.size && !had.has(li.dataset.key) && S.seen && !S.switched) li.classList.add("flash");
+    frag.append(li);
+  });
+  ol.replaceChildren(frag);
+  if (focusKey) {
+    const again = [...ol.children].find(li => li.dataset.key === focusKey);
+    if (again) again.firstChild.focus({ preventScroll: true });
+  }
+  if (anchor && S.open.node.isConnected) {
+    const after = S.open.node.parentElement.getBoundingClientRect().top;
+    if (Math.abs(after - before) > 1) window.scrollBy(0, after - before);
+  }
+}
+function render() {
+  const v = S.view, raw = S.raw;
+  if (!v) return;
+  S.switched = S.shownTab !== S.tab;        // 탭을 바꾼 직후에는 '새로 들어옴' 표시를 하지 않는다
+  S.shownTab = S.tab;
+  // 탭
+  const tabs = [["main", "종합"]].concat(TAB_ORDER.filter(c => (v.bycat[c] || []).length).map(c => [c, raw.catLabels[c]]));
+  if (!tabs.some(t => t[0] === S.tab)) S.tab = "main";
+  $("tabs").replaceChildren(...tabs.map(([k, name]) => {
+    const b = el("button", "tab", name);
+    b.type = "button";
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", String(k === S.tab));
+    b.addEventListener("click", () => { S.tab = k; S.open = null; render(); window.scrollTo({ top: 0 }); });
+    return b;
+  }));
+  // 속보 띠 (종합 탭에서만)
+  const flash = S.tab === "main" ? (raw.flash || []) : [];
+  $("flashPanel").hidden = !flash.length;
+  $("flashList").replaceChildren(...flash.map(a => artEl(Object.assign({}, a, { breaking: false }), a.cid, null)));
+  // 순위
+  const ids = S.tab === "main" ? v.main : (v.bycat[S.tab] || []);
+  $("mainH").textContent = S.tab === "main" ? "실시간 핫이슈" : raw.catLabels[S.tab] + " 핫이슈";
+  $("mainSub").textContent = ids.length ? "여러 언론사가 지금 동시에 쓰는 순" : "";
+  renderList($("mainList"), ids, "m-" + S.tab, true);
+  $("mainEmpty").hidden = ids.length > 0;
+  // 내 관심
+  renderList($("mineList"), v.mine, "mine", false);
+  $("mineEmpty").hidden = v.mine.length > 0;
+  // 관심사
+  const kws = Object.entries(P.kw).sort((a, b) => b[1] - a[1]).slice(0, 40);
+  $("kwList").replaceChildren(...kws.map(([k, w]) => {
+    const c = el("span", "kwchip", pretty(k));
+    c.style.opacity = String(Math.min(1, 0.55 + w / 6));
+    const x = el("button", null, "×");
+    x.type = "button";
+    x.setAttribute("aria-label", k + " 지우기");
+    x.addEventListener("click", () => { delete P.kw[k]; saveProfile(); refresh(); });
+    c.append(x);
+    return c;
+  }));
+  $("kwList").hidden = !kws.length;
+  $("kwEmpty").hidden = kws.length > 0;
+  $("resetBtn").hidden = !kws.length;
+  $("kwWhere").textContent = S.user ? "계정에 저장 · 모든 기기에서 같이 쌓임" : (CFG.firebase ? "지금은 이 기기에만 · 로그인하면 기기끼리 합쳐짐" : "이 기기에 저장");
+  // 급상승 검색어
+  $("trendPanel").hidden = !raw.trends.length;
+  $("trendList").replaceChildren(...raw.trends.map((t, n) => {
+    const a = el("a");
+    a.href = "https://news.google.com/search?q=" + encodeURIComponent(t) + "&hl=ko&gl=KR&ceid=KR:ko";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.append(el("span", "n", String(n + 1)), t);
+    return a;
+  }));
+  const src = raw.sources || {};
+  $("foot").textContent = "언론사 피드 " + (src.ok || 0) + "/" + (src.total || 0) + "개 수집 · 최근 기사 " +
+    raw.articles.toLocaleString("ko-KR") + "건 분석 · " + (raw.every || "");
+  renderLive();
+}
+function renderLive() {
+  const raw = S.raw;
+  const lost = !raw || Date.now() - S.lastOk > POLL_MS * 3;
+  const late = raw && nowSec() - raw.updated > 1500;   // 25분 넘게 새 데이터가 없으면 지연으로 본다
+  $("live").classList.toggle("off", lost || late);
+  $("liveText").textContent = lost ? "연결 끊김 — 다시 시도 중" : clock(raw.updated) + " 기준" + (late ? " · 갱신 지연 중" : " · 자동 갱신");
+}
+
+/* ── 펼치기: 관련 뉴스 ─────────────────── */
+function toggle(key, id) {
+  if (S.open && S.open.key === key) { S.open = null; render(); return; }
+  const node = el("div", "detail");
+  S.open = { key, id, node };
+  render();
+  showIssue(node, id, null);
+}
+function detailOf(id) { return getJSON("data/i/" + encodeURIComponent(id) + ".json", S.raw.updated); }
+async function showIssue(node, id, back) {
+  node.replaceChildren(el("p", "loading", "관련 뉴스를 불러오는 중…"));
+  let d;
+  try { d = await detailOf(id); }
+  catch (e) { node.replaceChildren(el("p", "loading", "이 이슈는 방금 순위에서 사라졌습니다.")); return; }
+  if (!node.isConnected) return;
+  const item = S.view.items[d.id] || S.view.items[id];
+  const frag = document.createDocumentFragment();
+  if (back) {
+    const b = el("button", "back", "← " + back.label + " 로 돌아가기");
+    b.type = "button";
+    b.addEventListener("click", () => showIssue(node, back.id, null));
+    frag.append(b, el("p", "d-h", d.label + " · " + d.outlets + "곳 " + d.count + "건"));
+  }
+  const top = el("div", "d-top");
+  if (item && item.why.length) top.append(el("span", "chip why", "내 관심사와 닿음 · " + item.why.map(pretty).join(", ")));
+  d.keywords.forEach(k => top.append(el("span", "chip", pretty(k))));
+  frag.append(top);
+  const ul = el("ul", "arts");
+  const FIRST = 12;
+  d.articles.forEach((a, n) => { const li = artEl(a, d.id, d); li.hidden = n >= FIRST; ul.append(li); });
+  frag.append(ul);
+  if (d.articles.length > FIRST) {
+    const moreBtn = el("button", "back", "앞선 기사 " + (d.articles.length - FIRST) + "건 더 보기");
+    moreBtn.type = "button";
+    moreBtn.addEventListener("click", () => { [...ul.children].forEach(li => { li.hidden = false; }); moreBtn.remove(); });
+    frag.append(moreBtn);
+  }
+  const moreBox = el("div");
+  frag.append(moreBox);
+  if (d.related.length && !back) {
+    frag.append(el("p", "d-h", "연결된 이슈"));
+    const rel = el("div", "rel");
+    d.related.forEach(r => {
+      const b = el("button", "relbtn", r.label);
+      b.type = "button";
+      b.title = r.headline;
+      b.addEventListener("click", () => showIssue(node, r.id, { id: d.id, label: d.label }));
+      rel.append(b);
+    });
+    frag.append(rel);
+  }
+  const g = el("a", "more-link", "구글 뉴스에서 ‘" + d.label + "’ 더 찾아보기 ↗");
+  g.href = "https://news.google.com/search?q=" + encodeURIComponent(d.label) + "&hl=ko&gl=KR&ceid=KR:ko";
+  g.target = "_blank";
+  g.rel = "noopener noreferrer";
+  frag.append(g);
+  node.replaceChildren(frag);
+  // 이슈를 처음 펼친 것은 약한 관심 신호. 다시 펼치면 '여기까지 봤음'만 남긴다
+  const first = !S.learned.has(d.id);
+  S.learned.add(d.id);
+  const weak = {};
+  if (first) for (const [k, f] of Object.entries(d.learn)) weak[k] = 0.15 * f;
+  learn(weak, first ? d.cat : null, 0.3, d.id);
+  if (S.raw.live) {                         // 내 PC 서버가 있을 때만: 직접 수집하지 않는 언론사 보도를 검색으로 보탠다
+    try {
+      const m = await getJSON("api/more?id=" + encodeURIComponent(d.id) + "&q=" + encodeURIComponent(d.label), S.raw.updated);
+      if (m.more && m.more.length && moreBox.isConnected) {
+        const ul2 = el("ul", "arts");
+        m.more.forEach(a => ul2.append(artEl(a, d.id, d)));
+        moreBox.append(el("p", "d-h", "다른 언론사 보도"), ul2);
+      }
+    } catch (e) { /* 검색이 막혀도 기본 목록은 그대로 */ }
+  }
+}
+function learnArticle(d, a) {               // 기사를 연 것이 가장 강한 관심 신호
+  const w = {};
+  for (const [k, f] of Object.entries(d.learn || {})) w[k] = 0.4 * f;
+  for (const [k, f] of Object.entries(a.lt || {})) w[k] = (w[k] || 0) + 1.2 * f;
+  learn(w, d.cat, 1.0, d.id);
+}
+function artEl(a, issueId, d) {
+  const li = el("li");
+  const link = el("a", "art");
+  link.href = safeUrl(a.url);
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  const outlet = a.outlet + (a.also && a.also.length ? " 외 " + a.also.length + "곳" : "");
+  const t = el("span", "art-time", ago(a.ts));
+  t.dataset.outlet = outlet;
+  t.title = new Date(a.ts * 1000).toLocaleString("ko-KR");
+  const title = el("span", "art-t");
+  if (a.breaking) title.append(el("span", "tag brk", "속보"));
+  else if (a.exclusive) title.append(el("span", "tag urg", "단독"));
+  title.append(a.title);
+  const o = el("span", "art-o", outlet);
+  if (a.also && a.also.length) o.title = a.also.join(", ");
+  link.append(t, title, o);
+  const opened = () => {
+    if (d) return learnArticle(d, a);
+    detailOf(issueId).then(dd => learnArticle(dd, dd.articles.find(x => x.id === a.id) || a)).catch(() => {});
+  };
+  link.addEventListener("click", opened);
+  link.addEventListener("auxclick", e => { if (e.button === 1) opened(); });
+  li.append(link);
+  return li;
+}
+
+/* ── 새 이슈 알림 ──────────────────────── */
+function notify(kind, label, body, tag) {
+  if (S.notify && "Notification" in window && Notification.permission === "granted") {
+    try { new Notification("[" + kind + "] " + label, { body, tag }); } catch (e) { /* 지원 안 하는 환경 */ }
+  }
+}
+function detectNew() {
+  const v = S.view, ids = v.main, flash = S.raw.flash || [];
+  if (S.seen === null) {                    // 처음 본 목록은 기준으로만 삼는다 (데이터가 아직 비어 있으면 기다림)
+    if (ids.length) { S.seen = new Set(ids); S.seenFlash = new Set(flash.map(a => a.cid)); }
+    return;
+  }
+  flash.forEach(a => {                      // 방금 들어온 속보: 순위에 오르기 전이라도 바로 알림
+    if (S.seenFlash.has(a.cid)) return;
+    S.seenFlash.add(a.cid);
+    S.seen.add(a.cid);                      // 같은 이슈가 순위에 올라올 때 또 알리지 않게
+    const kind = a.urgent ? "긴급 속보" : "속보";
+    toast(kind + " · " + a.outlet, { label: a.title, headline: "", id: a.cid });
+    notify(kind, a.title, a.outlet, a.cid);
+  });
+  ids.forEach((id, n) => {
+    if (S.seen.has(id)) return;
+    S.seen.add(id);
+    const i = v.items[id];
+    if (!i || !(i.breaking || i.urgent || i.rising || n < 5)) return;
+    const kind = i.breaking ? "속보" : i.urgent ? "긴급" : i.rising ? "급상승" : "새 핫이슈";
+    toast(kind + " · " + (n + 1) + "위", i);
+    notify(kind, i.label, i.headline, id);
+  });
+}
+function toast(kicker, i) {
+  const t = el("button", "toast");
+  t.type = "button";
+  t.append(el("small", null, kicker), el("b", null, i.label), el("span", null, i.headline));
+  const close = () => t.remove();
+  t.addEventListener("click", () => {
+    close();
+    S.tab = "main";
+    if (!S.view.main.includes(i.id)) {      // 아직 순위 밖인 속보는 맨 위 속보 띠로
+      render();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    const key = "m-main:" + i.id;
+    if (!S.open || S.open.key !== key) toggle(key, i.id);
+    const row = document.querySelector('[data-key="' + CSS.escape(key) + '"]');
+    if (row) row.scrollIntoView({ block: "center", behavior: "smooth" });
+  });
+  $("toasts").append(t);
+  setTimeout(close, 12000);
+  while ($("toasts").children.length > 3) $("toasts").firstChild.remove();
+}
+function setNotify(on) {
+  S.notify = on;
+  try { localStorage.setItem("notify", on ? "1" : ""); } catch (e) { /* 저장 못 해도 동작 */ }
+  $("notifyBtn").setAttribute("aria-pressed", String(on));
+  $("notifyBtn").textContent = on ? "속보 알림 켜짐" : "속보 알림 켜기";
+}
+$("notifyBtn").addEventListener("click", async () => {
+  if (S.notify) return setNotify(false);
+  if (!("Notification" in window)) return showAlert("이 브라우저는 바탕화면 알림을 지원하지 않습니다. 화면 오른쪽 아래 알림은 그대로 뜹니다.", "info");
+  const p = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+  if (p === "granted") setNotify(true);
+  else showAlert("브라우저에서 알림이 차단돼 있습니다. 주소창 왼쪽 자물쇠 → 알림 허용으로 바꿔 주세요.", "info");
+});
+$("resetBtn").addEventListener("click", () => {
+  const b = $("resetBtn");
+  if (b.dataset.sure) { delete b.dataset.sure; b.textContent = "모두 지우기"; P = blank(); saveProfile(); refresh(); }
+  else { b.dataset.sure = "1"; b.textContent = "정말 지울까요? 한 번 더 누르기"; setTimeout(() => { delete b.dataset.sure; b.textContent = "모두 지우기"; }, 4000); }
+});
+
+/* ── 로그인: 구글 계정으로 들어오면 관심사를 계정에 두고 기기끼리 맞춘다 ── */
+function renderAccount() {
+  const b = $("loginBtn");
+  b.hidden = !S.auth;
+  b.classList.toggle("in", !!S.user);
+  b.textContent = S.user ? ((S.user.displayName || S.user.email || "내 계정").split(/[\s@]/)[0] + " · 로그아웃") : "로그인";
+  if (S.view) render();
+}
+async function initCloud() {
+  if (!CFG.firebase) return;
+  try {
+    const V = "https://www.gstatic.com/firebasejs/10.12.2/";
+    const [appM, authM, dbM] = await Promise.all([import(V + "firebase-app.js"), import(V + "firebase-auth.js"), import(V + "firebase-firestore.js")]);
+    const app = appM.initializeApp(CFG.firebase);
+    const auth = authM.getAuth(app), db = dbM.getFirestore(app);
+    const syncError = e => showAlert("계정에 관심사를 저장하지 못했습니다 (" + (e.code || e.message) + "). 이 기기에는 그대로 남아 있습니다.", "sync");
+    let stop = null;
+    S.auth = {
+      login: () => authM.signInWithPopup(auth, new authM.GoogleAuthProvider()),
+      logout: () => authM.signOut(auth),
+    };
+    authM.onAuthStateChanged(auth, user => {
+      if (stop) { stop(); stop = null; }
+      S.user = user;
+      S.cloud = null;
+      if (user) {
+        const ref = dbM.doc(db, "profiles", user.uid);
+        let first = true;
+        S.cloud = { save: p => dbM.setDoc(ref, tidy(p)).then(() => clearAlert("sync")).catch(syncError) };
+        stop = dbM.onSnapshot(ref, snap => {
+          if (snap.metadata.hasPendingWrites) return;      // 내가 방금 쓴 것은 건너뜀
+          const remote = snap.exists() ? decay(tidy(snap.data())) : null;
+          if (first) {
+            first = false;
+            // 로그인 전 이 기기에 따로 쌓인 게 있으면 계정 것과 합치고, 없으면 계정 것을 그대로 따른다
+            if (remote && isDirty()) { P = mergeProfiles(P, remote); saveProfile(); }
+            else if (remote) { P = remote; writeLocal(false); }
+            else saveProfile();
+          } else if (remote) { P = remote; writeLocal(false); }   // 다른 기기에서 바뀐 것을 반영
+          refresh();
+        }, syncError);
+      }
+      renderAccount();
+    });
+    renderAccount();
+  } catch (e) {
+    console.warn("로그인 기능을 불러오지 못했습니다:", e);
+  }
+}
+$("loginBtn").addEventListener("click", async () => {
+  if (!S.auth) return;
+  try { await (S.user ? S.auth.logout() : S.auth.login()); clearAlert("login"); }
+  catch (e) {
+    if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") return;
+    showAlert(e.code === "auth/popup-blocked" ? "로그인 창이 차단됐습니다. 팝업을 허용하거나, 카카오톡 같은 앱 안 브라우저 대신 크롬·사파리에서 열어 주세요."
+      : e.code === "auth/unauthorized-domain" ? "이 주소가 Firebase 승인된 도메인에 없습니다. Firebase 콘솔 → Authentication → 설정 → 승인된 도메인에 이 주소를 추가해 주세요."
+      : "로그인하지 못했습니다 (" + (e.code || e.message) + ").", "login");
+  }
+});
+
+/* ── 갱신 ─────────────────────────────── */
+async function poll() {
+  try {
+    const raw = await getJSON("data/issues.json", Math.floor(Date.now() / 15000));
+    S.lastOk = Date.now();
+    clearAlert("net");
+    if (S.raw && S.raw.updated === raw.updated) return renderLive();
+    S.raw = raw;
+    S.view = computeView(raw);
+    render();
+    detectNew();
+  } catch (e) {
+    renderLive();
+    if (Date.now() - S.lastOk > POLL_MS * 3) showAlert("순위 데이터를 받지 못하고 있습니다. 인터넷 연결을 확인해 주세요. (내 PC판이라면 '핫이슈 실행.bat'을 다시 실행)", "net");
+  }
+}
+try { if (localStorage.getItem("notify") && "Notification" in window && Notification.permission === "granted") setNotify(true); } catch (e) { /* 무시 */ }
+poll();
+setInterval(poll, POLL_MS);
+setInterval(() => { if (S.view) render(); }, 60000);     // '몇 분 전' 표시를 흐르게
+document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+window.addEventListener("storage", e => { if (e.key === "hi.profile" && !S.cloud) { P = readLocal(); refresh(); } });
+initCloud();
+</script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+name: 수집·배포
+
+# 뉴스를 모아 순위를 계산하고, 결과를 GitHub Pages 로 내보낸다.
+# 일정 실행은 GitHub 이 허용하는 가장 짧은 주기(5분)다. 붐빌 때는 GitHub 쪽에서 몇 분씩 늦게 돈다.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore: ["README.md"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 한 번에 하나만. 앞 실행이 끝나야 다음이 그 결과(state.json.gz)를 이어받을 수 있다.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: pages
+        uses: actions/configure-pages@v5
+      - name: 수집 → 정적 사이트
+        run: python3 build.py --out _site --state "${{ steps.pages.outputs.base_url }}/state.json.gz"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4
