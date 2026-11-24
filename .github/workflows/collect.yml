@@ -28,13 +28,13 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - name: 수집 → 정적 사이트
         run: python3 build.py --out _site --state "${{ steps.pages.outputs.base_url }}/state.json.gz"
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
