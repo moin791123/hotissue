@@ -5,6 +5,7 @@
   python server.py --open     → 실행하면서 브라우저도 열기
   python server.py --lan      → 같은 와이파이의 휴대폰에서도 접속 허용
   python server.py --stop     → 켜져 있는 서버 끄기 (창 없이 백그라운드로 돌 때)
+  python server.py --no-nudge → 클라우드판 수집 실행을 대신 걸어 주지 않기
 
 pythonw 로 실행하면 창 없이 돌고, 기록은 data/server.log 에 남는다.
 화면(web/)은 클라우드판과 똑같다 — 순위 데이터(data/issues.json, data/i/<이슈>.json)를
@@ -14,12 +15,15 @@ import argparse
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import threading
 import time
 import urllib.request
 import webbrowser
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -107,6 +111,66 @@ def collector():
         except Exception as e:
             log("수집 오류:", repr(e))
         time.sleep(5)
+
+
+# ── 클라우드판 깨우기 ─────────────────────────────────────
+# GitHub 의 일정 실행은 늦거나 빠질 수 있다. 이 PC가 켜져 있는 동안은 여기서 간격을 지켜 준다:
+# 마지막 수집 실행이 NUDGE_EVERY 초보다 오래됐으면 GitHub CLI(gh)로 실행을 건다.
+# GitHub 일정이 제때 돌았으면 그 실행이 최근이므로 아무것도 하지 않는다.
+NUDGE_EVERY = 300
+WORKFLOW = "collect.yml"
+
+
+def find_gh():
+    return shutil.which("gh") or next(
+        (p for p in (r"C:\Program Files\GitHub CLI\gh.exe",) if os.path.exists(p)), None)
+
+
+def repo_slug():
+    """.git/config 의 origin 주소에서 '계정/저장소'를 읽는다 (없으면 None)."""
+    try:
+        with open(os.path.join(HERE, ".git", "config"), encoding="utf-8") as f:
+            m = re.search(r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?\s*$", f.read(), re.M)
+        return m.group(1) if m else None
+    except OSError:
+        return None
+
+
+def run_gh(gh, args):
+    r = subprocess.run([gh] + args, capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", timeout=40, stdin=subprocess.DEVNULL,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    if r.returncode:
+        raise RuntimeError((r.stderr or r.stdout).strip()[:160])
+    return r.stdout
+
+
+def nudger(gh, slug):
+    last_err, told = "", False
+    while True:
+        wait = 120
+        try:
+            runs = json.loads(run_gh(gh, ["run", "list", "-R", slug, "--workflow", WORKFLOW,
+                                          "--limit", "1", "--json", "createdAt,status"]) or "[]")
+            busy = bool(runs) and runs[0]["status"] != "completed"
+            age = (time.time() - datetime.fromisoformat(
+                runs[0]["createdAt"].replace("Z", "+00:00")).timestamp()) if runs else 1e9
+            if busy:
+                wait = 30                      # 지금 도는 실행이 끝나기를 기다린다
+            elif age >= NUDGE_EVERY - 10:
+                run_gh(gh, ["workflow", "run", WORKFLOW, "-R", slug])
+                log("클라우드판 수집 실행을 걸었습니다", routine=told)
+                told = True
+                wait = NUDGE_EVERY
+            else:
+                wait = max(20, NUDGE_EVERY - age)
+            last_err = ""
+        except Exception as e:
+            msg = str(e)[:160]
+            if msg != last_err:                # 같은 오류를 계속 적지 않는다
+                log("클라우드판 실행 걸기 실패:", msg)
+                last_err = msg
+        time.sleep(wait)
 
 
 # ── 화면에 줄 데이터 ──────────────────────────────────────
@@ -239,6 +303,7 @@ def main():
     ap.add_argument("--lan", action="store_true")
     ap.add_argument("--open", action="store_true")
     ap.add_argument("--stop", action="store_true")
+    ap.add_argument("--no-nudge", action="store_true")
     args = ap.parse_args()
     if sys.stdout is None:                     # pythonw: 창이 없으니 기록은 파일로
         os.makedirs(DATA, exist_ok=True)
@@ -270,6 +335,14 @@ def main():
     load_state()
     threading.Thread(target=collector, daemon=True).start()
     log(f"지금 이슈 실행 중 → {url}" + ("" if QUIET else "  (끄려면 이 창에서 Ctrl+C)"))
+    gh, slug = find_gh(), repo_slug()
+    if args.no_nudge:
+        pass
+    elif gh and slug:
+        threading.Thread(target=nudger, args=(gh, slug), daemon=True).start()
+        log(f"클라우드판({slug}) 수집을 {NUDGE_EVERY // 60}분 간격으로 지켜 줍니다")
+    else:
+        log("클라우드판 깨우기 꺼짐: " + ("GitHub CLI(gh)를 찾지 못함" if not gh else "GitHub 저장소가 아님"))
     if args.open:
         threading.Timer(1.0, webbrowser.open, [url]).start()
     try:
